@@ -2,6 +2,7 @@ package com.example.shivamvk.location;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
@@ -12,6 +13,7 @@ import android.os.Handler;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -85,7 +87,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.bt_locate_me).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED){
+                if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                     ActivityCompat.requestPermissions(MainActivity.this,
                             new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
                             ACCESS_FINE_LOCATION);
@@ -103,15 +105,38 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        switch(requestCode){
+        switch (requestCode) {
             case ACCESS_FINE_LOCATION:
-                if (getLocationMode(MainActivity.this) != 0) {
-                    getLocation();
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    if (getLocationMode(MainActivity.this) != 0) {
+                        getLocation();
+                    } else {
+                        displayLocationSettingsRequest(MainActivity.this);
+                    }
                 } else {
-                    displayLocationSettingsRequest(MainActivity.this);
+                    AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    builder.setMessage("You won't be able to get your location until you grant permissions to access your location. Do you wish to continue without giving us permissions?");
+                    builder.setNegativeButton("No", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                                ActivityCompat.requestPermissions(MainActivity.this,
+                                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                                        ACCESS_FINE_LOCATION);
+                            }
+                        }
+                    });
+                    builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            //do nothing
+                        }
+                    });
+                    builder.show();
                 }
         }
     }
+
     /**
      * Method is used to check which locatrion mode is selected,
      * @return If return 0 = LOCATION_MODE_OFF, 1 =  LOCATION_MODE_SENSORS_ONLY & DEVICE_ONLY, 2 = LOCATION_MODE_BATTERY_SAVING , 3 = LOCATION_MODE_HIGH_ACCURACY
@@ -180,7 +205,12 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void getLocation(){
+    private void getLocation() {
+        if (ActivityCompat.checkSelfPermission(
+                this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
         fusedLocationProviderClient.getLastLocation()
                 .addOnSuccessListener(MainActivity.this, new OnSuccessListener<Location>() {
                     @Override
@@ -245,7 +275,21 @@ public class MainActivity extends AppCompatActivity {
             if (resultCode == RESULT_OK){
                 getLocation();
             } else {
-                displayLocationSettingsRequest(MainActivity.this);
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                builder.setMessage("You won't be able to get your location until your device's GPS is on. Do you still wish to continue without GPS");
+                builder.setNegativeButton("No", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        displayLocationSettingsRequest(MainActivity.this);
+                    }
+                });
+                builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        //do nothing
+                    }
+                });
+                builder.show();
             }
         }
     }
